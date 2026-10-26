@@ -30,7 +30,7 @@ function cliToken() {
 const dbFile = path.join(dataDir, "db", "data.sqlite");
 if (!existsSync(dbFile)) { console.error(`Database not found: ${dbFile}`); process.exit(1); }
 const db = new DatabaseSync(dbFile, { readOnly: true });
-const rows = db.prepare("select id,provider,name,email,isActive from providerConnections order by provider, priority, name").all()
+const rows = db.prepare("select id,provider,name,email,isActive,data from providerConnections order by provider, priority, name").all()
   .filter((r) => !only || r.provider === only);
 
 const headers = { "x-9r-cli-token": cliToken(), "content-type": "application/json" };
@@ -42,10 +42,25 @@ for (const r of rows) {
   if (r.provider !== cur) { cur = r.provider; console.log(`${C.b}${cur}${C.x}`); }
   const label = (r.name || r.email || r.id.slice(0, 8)).slice(0, 40).padEnd(40);
   if (!r.isActive) { off++; console.log(`  ${C.d}SKIP  ${label} disabled${C.x}`); continue; }
-  // gateways older than the Zed test fix answer "Provider test not supported" and record the
-  // account as errored, so do not call the endpoint for Zed.
-  if (r.provider === "zed" && !process.argv.includes("--force-zed")) {
-    skipped++; console.log(`  ${C.y}SKIP  ${C.x}${label} ${C.d}gateway cannot test Zed accounts yet - use: 9r health zed${C.x}`); continue;
+  // Gateways without the Zed test fix answer "Provider test not supported" and record the account
+  // as errored. Ask Zed directly instead (read-only GET, same call the fixed gateway makes) so
+  // nothing in the gateway's state changes.
+  if (r.provider === "zed") {
+    const t0 = Date.now();
+    try {
+      const d = JSON.parse(r.data || "{}");
+      const p = d.providerSpecificData || {};
+      if (!d.accessToken || !p.userId) throw new Error("account is missing its token or user id");
+      const res = await fetch("https://cloud.zed.dev/client/users/me", {
+        headers: { Accept: "application/json", Authorization: `${p.userId} ${d.accessToken}`, ...(p.systemId ? { "x-zed-system-id": String(p.systemId) } : {}) },
+        signal: AbortSignal.timeout(15000),
+      });
+      const ms = `${Date.now() - t0}ms`;
+      if (res.ok) { ok++; console.log(`  ${C.g}PASS  ${C.x}${label} ${C.d}${ms} (checked with Zed directly)${C.x}`); }
+      else if (res.status === 401 || res.status === 403) { bad++; failures.push({ provider: "zed", name: r.name, err: `HTTP ${res.status}` }); console.log(`  ${C.r}FAIL  ${C.x}${label} ${C.d}${ms}${C.x} Zed rejected the credentials (HTTP ${res.status}) - sign in again`); }
+      else { skipped++; console.log(`  ${C.y}SKIP  ${C.x}${label} ${C.d}inconclusive: Zed answered HTTP ${res.status}${C.x}`); }
+    } catch (e) { skipped++; console.log(`  ${C.y}SKIP  ${C.x}${label} ${C.d}inconclusive: ${e.message}${C.x}`); }
+    continue;
   }
   const t = Date.now();
   try {
@@ -63,4 +78,4 @@ for (const r of rows) {
     }
   } catch (e) { bad++; failures.push({ provider: r.provider, name: r.name, err: e.message }); console.log(`  ${C.r}FAIL  ${C.x}${label} ${e.message}`); }
 }
-console.log(`\n${C.b}Result:${C.x} ${C.g}${ok} pass${C.x}, ${bad ? C.r : C.d}${bad} fail${C.x}${off ? `, ${off} disabled` : ""}${skipped ? `, ${skipped} skipped (Zed)` : ""}`);
+console.log(`\n${C.b}Result:${C.x} ${C.g}${ok} pass${C.x}, ${bad ? C.r : C.d}${bad} fail${C.x}${off ? `, ${off} disabled` : ""}${skipped ? `, ${skipped} inconclusive` : ""}`);

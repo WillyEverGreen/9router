@@ -57,9 +57,11 @@ function classify(row, d) {
       ? { tag: "OK*", color: C.y, note: `${lockedModels.length} model(s) cooling down: ${lockedModels.slice(0, 3).join(", ")}${lockedModels.length > 3 ? "…" : ""}` }
       : { tag: "OK", color: C.g, note: "" };
   }
-  const err = String(d.lastError || "").replace(/\s+/g, " ").slice(0, 70);
+  const fullErr = String(d.lastError || "").replace(/\s+/g, " ");
+  const err = fullErr.slice(0, 70);
   const when = d.lastErrorAt ? ` (${ago(d.lastErrorAt)})` : "";
   const net = /ENOTFOUND|ECONNRESET|ETIMEDOUT|fetch failed|EAI_AGAIN/i.test(err);
+  if (/404.*(not found|entity)/i.test(fullErr)) return { tag: "MODEL-404", color: C.y, note: `upstream says model/entity not found${when} - model-level (retired model?), not necessarily this account` };
   const auth = /401|403|expired|revoked|invalid_grant|unauthor/i.test(err);
   if (auth) return { tag: "RE-LOGIN", color: C.r, note: `${err}${when}` };
   return { tag: net ? "NETWORK?" : "ERROR", color: C.r, note: `${err}${when}${net ? " – transient, probably recovers on next use" : ""}` };
@@ -104,7 +106,7 @@ if (live) {
   try { models = (await (await fetch(`${BASE}/v1/models`, { headers })).json()).data.map((m) => m.id); }
   catch (e) { console.log(`${C.r}Gateway unreachable: ${e.message}${C.x}`); process.exit(1); }
   const PREFIX = { zed: "zd", kiro: "kr", codex: "cx", antigravity: "ag", claude: "cc", gemini: "gc", github: "gh", openai: "openai" };
-  const PREFER = /haiku|flash|mini|nano|luna|deepseek|3\.5|4\.5/i;
+  const PREFER = /3\.8-flash$|haiku|-mini|-nano|luna|deepseek|4\.5/i;
   for (const prov of byProvider.keys()) {
     const pre = (PREFIX[prov] || prov) + "/";
     const cands = models.filter((m) => m.startsWith(pre) && !/image|embed|tts|transcribe|review|\[1m\]/i.test(m));
@@ -122,7 +124,7 @@ if (live) {
         last = `${model} -> ${res.status} ${body.replace(/\s+/g, " ").slice(0, 100)}`;
       } catch (e) { last = `${model} -> ${e.message}`; }
     }
-    if (!passed) console.log(`  ${C.r}FAIL   ${C.x} ${prov.padEnd(12)} (tried ${ranked.length}) ${last}`);
+    if (!passed) console.log(`  ${C.r}FAIL   ${C.x} ${prov.padEnd(12)} (tried ${ranked.join(", ")}) ${last}`);
   }
   console.log(`\n${C.d}Per-account live test: dashboard → Providers → Test all (needs your login).${C.x}`);
 }

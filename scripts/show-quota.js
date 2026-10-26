@@ -26,7 +26,7 @@ async function main() {
   }
 
   try {
-    console.log("\nKiro CLI accounts:\n" + execSync("kiro accounts", { encoding: "utf8", timeout: 5000 }).trim());
+    console.log("\nKiro app local accounts (not the gateway connections; gateway token health: dashboard/quota):\n" + execSync("kiro accounts", { encoding: "utf8", timeout: 5000 }).trim());
   } catch {
     console.log("\nKiro CLI check skipped (not installed or offline).");
   }

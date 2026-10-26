@@ -30,6 +30,11 @@ if (-not (Test-Path "node_modules")) {
     }
 }
 
+if (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue) {
+    Write-Error "Port $Port is already in use - a 9Router gateway is running. Run `9r stop` first (two instances sharing one database can corrupt OAuth token rotation)."
+    exit 1
+}
+
 Write-Host "[*] Starting 9Router server on port $Port..." -ForegroundColor Green
 Write-Host "[*] Web Dashboard : http://localhost:$Port/dashboard" -ForegroundColor Green
 Write-Host "[*] OpenAI API    : http://localhost:$Port/v1`n" -ForegroundColor Green

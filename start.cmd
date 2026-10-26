@@ -21,7 +21,7 @@ if not exist ".env" (
 
 REM 2. Verify dependencies
 if not exist "node_modules\" (
-    echo [*] Installing dependencies (first run)...
+    echo [*] Installing dependencies ^(first run^)...
     call npm install
     if errorlevel 1 (
         echo [!] npm install failed.
@@ -34,6 +34,13 @@ REM 3. Determine port (default 20127, or pass as %1)
 set APP_PORT=20127
 if not "%~1"=="" (
     set APP_PORT=%~1
+)
+
+netstat -ano | findstr /R /C:":%APP_PORT% .*LISTENING" >nul
+if not errorlevel 1 (
+    echo [!] Port %APP_PORT% is already in use - a 9Router gateway is running. Run "9r stop" first.
+    echo     Two instances sharing one database can corrupt OAuth token rotation.
+    exit /b 1
 )
 
 echo [*] Starting 9Router server on port %APP_PORT%...

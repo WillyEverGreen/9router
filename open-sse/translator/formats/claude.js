@@ -589,17 +589,6 @@ export function prepareClaudeRequest(body, provider = null, apiKey = null, conne
 
     body.messages = filtered;
 
-    // Ensure all tool_result blocks have is_error explicitly set as a boolean (strict Rust/serde upstreams reject missing field)
-    for (const msg of filtered) {
-      if (Array.isArray(msg.content)) {
-        for (const block of msg.content) {
-          if (block && (block.type === CLAUDE_BLOCK.TOOL_RESULT || block.type === "tool_result" || block.type === CLAUDE_BLOCK.WEB_SEARCH_TOOL_RESULT)) {
-            block.is_error = Boolean(block.is_error);
-          }
-        }
-      }
-    }
-
     // Check if thinking is enabled AND last message is from user
     const lastMessage = filtered[filtered.length - 1];
     const lastMessageIsUser = lastMessage?.role === "user";

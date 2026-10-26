@@ -36,12 +36,17 @@ const rows = db.prepare("select id,provider,name,email,isActive from providerCon
 const headers = { "x-9r-cli-token": cliToken(), "content-type": "application/json" };
 console.log(`${C.b}9ROUTER PER-ACCOUNT TEST${C.x} ${C.d}${BASE} - ${rows.length} accounts, one at a time${C.x}\n`);
 
-let cur = "", ok = 0, bad = 0, off = 0;
+let cur = "", ok = 0, bad = 0, off = 0, skipped = 0;
 const failures = [];
 for (const r of rows) {
   if (r.provider !== cur) { cur = r.provider; console.log(`${C.b}${cur}${C.x}`); }
   const label = (r.name || r.email || r.id.slice(0, 8)).slice(0, 40).padEnd(40);
   if (!r.isActive) { off++; console.log(`  ${C.d}SKIP  ${label} disabled${C.x}`); continue; }
+  // gateways older than the Zed test fix answer "Provider test not supported" and record the
+  // account as errored, so do not call the endpoint for Zed.
+  if (r.provider === "zed" && !process.argv.includes("--force-zed")) {
+    skipped++; console.log(`  ${C.y}SKIP  ${C.x}${label} ${C.d}gateway cannot test Zed accounts yet - use: 9r health zed${C.x}`); continue;
+  }
   const t = Date.now();
   try {
     const res = await fetch(`${BASE}/api/providers/${encodeURIComponent(r.id)}/test`, { method: "POST", headers, signal: AbortSignal.timeout(60000) });
@@ -58,4 +63,4 @@ for (const r of rows) {
     }
   } catch (e) { bad++; failures.push({ provider: r.provider, name: r.name, err: e.message }); console.log(`  ${C.r}FAIL  ${C.x}${label} ${e.message}`); }
 }
-console.log(`\n${C.b}Result:${C.x} ${C.g}${ok} pass${C.x}, ${bad ? C.r : C.d}${bad} fail${C.x}${off ? `, ${off} disabled` : ""}`);
+console.log(`\n${C.b}Result:${C.x} ${C.g}${ok} pass${C.x}, ${bad ? C.r : C.d}${bad} fail${C.x}${off ? `, ${off} disabled` : ""}${skipped ? `, ${skipped} skipped (Zed)` : ""}`);

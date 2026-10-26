@@ -27,6 +27,7 @@ import {
   KILOCODE_CONFIG,
   KIMCHI_CONFIG,
 } from "@/lib/oauth/constants/oauth";
+import { fetchZedAuthenticatedUser } from "open-sse/shared/zedAuth.js";
 import { buildClineHeaders } from "@/shared/utils/clineAuth";
 import { hasWebIdentityProbe, fetchWebIdentity } from "open-sse/services/webIdentity.js";
 
@@ -363,7 +364,28 @@ function isTokenExpired(connection) {
   return shouldRefreshCredentials(connection.provider, connection);
 }
 
+// Zed has no entry in OAUTH_TEST_CONFIG (its credential is "<userId> <token>", not a bearer),
+// so without this every Test ends in "Provider test not supported" and marks a working
+// connection as errored. GET /client/users/me is the same call the import flow uses.
+async function testZedConnection(connection) {
+  if (!connection.accessToken) return { valid: false, error: "No access token", refreshed: false };
+  try {
+    await fetchZedAuthenticatedUser(
+      { accessToken: connection.accessToken, providerSpecificData: connection.providerSpecificData },
+      { signal: AbortSignal.timeout(15000) },
+    );
+    return { valid: true, error: null, refreshed: false };
+  } catch (err) {
+    if (err?.status === 401 || err?.status === 403) {
+      return { valid: false, error: `Zed rejected the credentials (HTTP ${err.status}) - sign in again`, refreshed: false };
+    }
+    // Network / 5xx: inconclusive, so a hiccup cannot mark a healthy account as broken.
+    return { valid: true, error: `Could not verify the Zed session: ${err?.message || "request failed"}`, refreshed: false };
+  }
+}
+
 async function testOAuthConnection(connection, effectiveProxy = null) {
+  if (connection.provider === "zed") return testZedConnection(connection);
   const config = OAUTH_TEST_CONFIG[connection.provider];
   if (!config) return { valid: false, error: "Provider test not supported", refreshed: false };
   if (!connection.accessToken) return { valid: false, error: "No access token", refreshed: false };

@@ -58,10 +58,10 @@ function normalizeZedProvider(value, model) {
 }
 
 function buildProviderRequest(provider, model, body, stream, credentials) {
+  let req;
   if (provider === ZED_PROVIDER.anthropic) {
-    return openaiToClaudeRequest(model, body, true);
-  }
-  if (provider === ZED_PROVIDER.google) {
+    req = openaiToClaudeRequest(model, body, true);
+  } else if (provider === ZED_PROVIDER.google) {
     const geminiRequest = openaiToGeminiRequest(model, body, true);
     // Zed's hosted Gemini backend speaks the Vertex safety vocabulary, not the
     // public Gemini API enum the shared translator emits (`OFF`, `CIVIC_INTEGRITY`,
@@ -69,13 +69,18 @@ function buildProviderRequest(provider, model, body, stream, credentials) {
     // path so Zed applies its own defaults — scoped here so native Gemini/
     // Antigravity is untouched.
     delete geminiRequest.safetySettings;
-    return geminiRequest;
+    req = geminiRequest;
+  } else if (provider === ZED_PROVIDER.openai) {
+    req = openaiToOpenAIResponsesRequest(model, body, true, credentials);
+  } else {
+    // xAI is OpenAI-shaped — forward as-is.
+    req = { ...(body || {}), model, stream: stream !== false };
   }
-  if (provider === ZED_PROVIDER.openai) {
-    return openaiToOpenAIResponsesRequest(model, body, true, credentials);
+  // Zed rejects `temperature` for newer models ("`temperature` is deprecated for this model.")
+  if (req && req.temperature !== undefined) {
+    delete req.temperature;
   }
-  // xAI is OpenAI-shaped — forward as-is.
-  return { ...(body || {}), model, stream: stream !== false };
+  return req;
 }
 
 function initProviderState(provider, model) {

@@ -119,3 +119,22 @@ describe("completion payload shaping", () => {
     );
   });
 });
+
+describe("temperature handling", () => {
+  it("drops temperature from provider_request for every Zed provider", async () => {
+    resolveZedModels.mockImplementation(async () => catalogFor([
+      ["claude-x", { provider: "anthropic" }],
+      ["gpt-x", { provider: "open_ai" }],
+      ["gemini-x", { provider: "google" }],
+      ["grok-x", { provider: "x_ai" }],
+    ]));
+    const captured = {};
+    mockCatalogFetch(captured);
+    const executor = makeExecutor();
+
+    for (const model of ["claude-x", "gpt-x", "gemini-x", "grok-x"]) {
+      await executor.execute({ model, body: { ...CHAT_BODY, temperature: 0.7 }, stream: false, credentials: {} });
+      expect(captured.body.provider_request).not.toHaveProperty("temperature");
+    }
+  });
+});

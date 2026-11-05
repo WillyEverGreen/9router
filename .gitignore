@@ -102,3 +102,6 @@ graphify-out/*
 start-dev-silent.cjs
 debug.log
 .scratch/
+
+# local-only gateway secret (never commit)
+workers/9ai/.auth-token

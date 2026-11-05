@@ -80,6 +80,10 @@ function buildProviderRequest(provider, model, body, stream, credentials) {
   if (req && req.temperature !== undefined) {
     delete req.temperature;
   }
+  // OpenAI Responses API requires max_output_tokens >= 16
+  if (req && typeof req.max_output_tokens === "number" && req.max_output_tokens < 16) {
+    req.max_output_tokens = 16;
+  }
   return req;
 }
 

@@ -200,10 +200,20 @@ function syncClipWrangler(currentTunnelUrl) {
   if (!currentTunnelUrl || !fs.existsSync(CLIP_WRANGLER)) return false;
   try {
     let toml = fs.readFileSync(CLIP_WRANGLER, "utf8");
-    const match = toml.match(/ROUTER_URL\s*=\s*"([^"]+)"/);
-    if (match && match[1] !== currentTunnelUrl) {
-      console.log(`[*] Tunnel URL changed from ${match[1]} to ${currentTunnelUrl}. Updating Clip...`);
-      toml = toml.replace(match[0], `ROUTER_URL = "${currentTunnelUrl}"`);
+    const match = toml.match(/ROUTER_URL\s*=\s*"([^"]*)"/);
+    if (match) {
+      if (match[1] !== currentTunnelUrl) {
+        console.log(`[*] Tunnel URL changed from ${match[1] || '(empty)'} to ${currentTunnelUrl}. Updating Clip...`);
+        toml = toml.replace(match[0], `ROUTER_URL = "${currentTunnelUrl}"`);
+        fs.writeFileSync(CLIP_WRANGLER, toml, "utf8");
+        console.log("[*] Deploying updated worker...");
+        execSync("npx wrangler deploy", { cwd: path.join(CLIP_DIR, "worker"), stdio: "inherit" });
+        console.log("[+] Clip worker deployed with new tunnel URL!");
+        return true;
+      }
+    } else if (toml.includes("[vars]")) {
+      console.log(`[*] Adding ROUTER_URL = "${currentTunnelUrl}" to Clip wrangler.toml...`);
+      toml = toml.replace("[vars]", `[vars]\nROUTER_URL = "${currentTunnelUrl}"`);
       fs.writeFileSync(CLIP_WRANGLER, toml, "utf8");
       console.log("[*] Deploying updated worker...");
       execSync("npx wrangler deploy", { cwd: path.join(CLIP_DIR, "worker"), stdio: "inherit" });

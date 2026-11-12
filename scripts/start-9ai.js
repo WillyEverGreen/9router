@@ -317,7 +317,7 @@ function testGateway() {
     process.stdout.write("[*] Testing live gateway end-to-end (https://clip.foo.ng/9ai)... ");
     const req = https.request(
       GATEWAY_URL,
-      { method: "POST", headers: { "Content-Type": "text/plain" }, timeout: 15000 },
+      { method: "POST", headers: { "Content-Type": "text/plain" }, timeout: 30000 },
       (res) => {
         let body = "";
         res.on("data", (chunk) => (body += chunk));
@@ -338,7 +338,7 @@ function testGateway() {
     });
     req.on("timeout", () => {
       req.destroy();
-      console.log("Timed out (15s)");
+      console.log("Timed out (30s)");
       resolve({ ok: false, error: "timeout" });
     });
     req.write("reply with the single word PONG");

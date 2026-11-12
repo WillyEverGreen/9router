@@ -43,6 +43,40 @@
 
 ---
 
+## 🌐 NEW: 9ai Remote Gateway (Fork Feature)
+
+**Access your 9Router from ANY terminal without local installation!**
+
+This fork includes a complete Cloudflare Worker gateway that lets you use your 9Router from any machine with just `curl`:
+
+```bash
+# One-line install on any Linux/Mac
+curl -fsSL https://your-worker.workers.dev/i/<token> | sh
+
+# Then use from anywhere
+9ai "what is 2+2"
+git diff | 9ai "review this code"
+9ai -m kr/claude-sonnet-4.5 "explain quantum computing"
+```
+
+**Features:**
+- 🚀 Zero local setup on client machines (just curl + sh)
+- 🔐 Token-based auth (keeps your router URL/key secret)
+- 🤖 24/7 watchdog keeps router + tunnel running
+- 🔄 Auto-syncs Cloudflare Worker when tunnel URL changes
+- 📊 Health monitoring with auto-recovery
+- 🆓 Free tier: 100k requests/day on Cloudflare
+
+**Setup:** See [`workers/9ai/SETUP.md`](workers/9ai/SETUP.md) for complete guide.
+
+**Quick start:**
+```bash
+npm run 9ai          # Test mode
+npm run 9ai -- --watch  # 24/7 watchdog mode
+```
+
+---
+
 ## 🔄 How It Works
 
 ```

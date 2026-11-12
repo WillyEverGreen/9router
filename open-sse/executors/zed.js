@@ -17,6 +17,7 @@
 import { BaseExecutor } from "./base.js";
 import { FORMATS } from "../translator/formats.js";
 import { initState } from "../translator/index.js";
+import { DEFAULT_THINKING_AG_SIGNATURE } from "../config/defaultThinkingSignature.js";
 import { openaiToClaudeRequest } from "../translator/request/openai-to-claude.js";
 import { openaiToGeminiRequest } from "../translator/request/openai-to-gemini.js";
 import { openaiToOpenAIResponsesRequest } from "../translator/request/openai-responses.js";
@@ -57,18 +58,38 @@ function normalizeZedProvider(value, model) {
   return ZED_PROVIDER.openai;
 }
 
+const ZED_THOUGHT_SIGNATURE_BYPASS = "skip_thought_signature_validator";
+
+/**
+ * Zed's Google backend rejects synthetic Antigravity `thoughtSignature`
+ * fallbacks (`Invalid thought signature.`). Preserve authentic cached
+ * signatures from Zed Gemini turns and replace synthetic AG fallbacks with
+ * Google's documented bypass sentinel.
+ */
+function replaceSyntheticGeminiThoughtSignatures(geminiRequest) {
+  for (const turn of geminiRequest?.contents || []) {
+    if (!Array.isArray(turn?.parts)) continue;
+    for (const part of turn.parts) {
+      if (part?.thoughtSignature === DEFAULT_THINKING_AG_SIGNATURE) {
+        part.thoughtSignature = ZED_THOUGHT_SIGNATURE_BYPASS;
+      }
+    }
+  }
+}
+
 function buildProviderRequest(provider, model, body, stream, credentials) {
   let req;
   if (provider === ZED_PROVIDER.anthropic) {
     req = openaiToClaudeRequest(model, body, true);
   } else if (provider === ZED_PROVIDER.google) {
-    const geminiRequest = openaiToGeminiRequest(model, body, true);
+    const geminiRequest = openaiToGeminiRequest(model, body, true, credentials);
     // Zed's hosted Gemini backend speaks the Vertex safety vocabulary, not the
     // public Gemini API enum the shared translator emits (`OFF`, `CIVIC_INTEGRITY`,
     // `DANGEROUS_CONTENT`). Drop client-side safetySettings for the Zed Google
     // path so Zed applies its own defaults — scoped here so native Gemini/
     // Antigravity is untouched.
     delete geminiRequest.safetySettings;
+    replaceSyntheticGeminiThoughtSignatures(geminiRequest);
     req = geminiRequest;
   } else if (provider === ZED_PROVIDER.openai) {
     req = openaiToOpenAIResponsesRequest(model, body, true, credentials);
@@ -154,12 +175,13 @@ function normalizeStatus(status) {
   return null;
 }
 
-function wrapZedCompletionStream(response, provider, model) {
+function wrapZedCompletionStream(response, provider, model, sessionId = null) {
   if (!response.ok || !response.body) return response;
 
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   const state = initProviderState(provider, model);
+  if (sessionId) state.sessionId = sessionId;
   let buffer = "";
   let done = false;
 
@@ -281,7 +303,9 @@ class ZedExecutor extends BaseExecutor {
       },
     });
 
-    const wrapped = response.ok ? wrapZedCompletionStream(response, provider, model) : response;
+    const wrapped = response.ok
+      ? wrapZedCompletionStream(response, provider, model, credentials?._clientSessionId)
+      : response;
     return {
       response: wrapped,
       url: `${this.config?.llmBaseUrl || "https://cloud.zed.dev"}/completions`,

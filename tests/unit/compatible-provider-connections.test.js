@@ -20,6 +20,7 @@ async function setupTestContext(nodeData) {
     },
   }));
 
+  const { closeAdapter } = await import("@/lib/db/driver.js");
   const { POST } = await import("@/app/api/providers/route.js");
   const {
     createProviderNode,
@@ -32,7 +33,8 @@ async function setupTestContext(nodeData) {
     node,
     POST,
     getProviderConnections,
-    cleanup() {
+    async cleanup() {
+      await closeAdapter();
       fs.rmSync(tempDir, { recursive: true, force: true });
     },
   };
@@ -67,18 +69,18 @@ function expectCompatibleConnection(connection, node, { apiType } = {}) {
 }
 
 describe("compatible provider connections API", () => {
-  let cleanup = () => {};
+  let cleanup = async () => {};
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await cleanup();
+    cleanup = async () => {};
     vi.doUnmock("next/server");
     vi.resetModules();
     vi.clearAllMocks();
-    cleanup();
-    cleanup = () => {};
     if (originalDataDir === undefined) delete process.env.DATA_DIR;
     else process.env.DATA_DIR = originalDataDir;
   });

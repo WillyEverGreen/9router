@@ -10,30 +10,32 @@ async function setupDb() {
   process.env.DATA_DIR = tempDir;
   vi.resetModules();
 
+  const { closeAdapter } = await import("@/lib/db/driver.js");
   const { createProviderNode } = await import("@/models/index.js");
   const { getModelInfo } = await import("@/sse/services/model.js");
 
   return {
     createProviderNode,
     getModelInfo,
-    cleanup() {
+    async cleanup() {
+      await closeAdapter();
       fs.rmSync(tempDir, { recursive: true, force: true });
     },
   };
 }
 
 describe("model routing", () => {
-  let cleanup = () => {};
+  let cleanup = async () => {};
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    await cleanup();
+    cleanup = async () => {};
     vi.resetModules();
     vi.clearAllMocks();
-    cleanup();
-    cleanup = () => {};
     if (originalDataDir === undefined) delete process.env.DATA_DIR;
     else process.env.DATA_DIR = originalDataDir;
   });

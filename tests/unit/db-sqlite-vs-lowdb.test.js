@@ -17,7 +17,8 @@ beforeAll(async () => {
   await sqliteDb.initDb();
 });
 
-afterAll(() => {
+afterAll(async () => {
+  await sqliteDb?.closeDb?.();
   if (tempDir) fs.rmSync(tempDir, { recursive: true, force: true });
   if (originalDataDir === undefined) delete process.env.DATA_DIR;
   else process.env.DATA_DIR = originalDataDir;

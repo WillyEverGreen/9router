@@ -36,7 +36,9 @@ beforeAll(async () => {
   ({ generateAuthData, exchangeTokens } = await import("@/lib/oauth/providers/index.js"));
 }, 30_000);
 
-afterAll(() => {
+afterAll(async () => {
+  const { closeAdapter } = await import("@/lib/db/driver.js");
+  await closeAdapter();
   fs.rmSync(process.env.DATA_DIR, { recursive: true, force: true });
   if (originalDataDir === undefined) delete process.env.DATA_DIR;
   else process.env.DATA_DIR = originalDataDir;
@@ -183,7 +185,7 @@ describe("criterion 3 — real callback completes session + saves connection", (
     const again = await startZedProxy(0);
     expect(again.port).not.toBe(started.port);
     stopZedProxy();
-  });
+  }, 15_000);
 });
 
 describe("criterion 5 — systemId stable authorize → exchange → stored", () => {

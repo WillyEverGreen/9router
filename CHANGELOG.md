@@ -1,5 +1,30 @@
 # v0.5.112 (2026-10-28)
 
+## Custom Fork Features (WillyEverGreen/9router)
+
+### Features
+- **9ai Remote Gateway**: Complete Cloudflare Worker-based gateway system allowing terminal access to 9Router from any machine without local installation
+  - Shell client installer (`curl | sh`) with token-based auth
+  - Simple CLI usage: `9ai "question"` with stdin support and model override
+  - 24/7 watchdog with auto-recovery for 9Router, bridge, and tunnel
+  - Automatic tunnel management (Cloudflare + abc-tunnel registration)
+  - Optional Wrangler auto-sync when tunnel URL changes (via `CLIP_DIR` env var)
+  - Port bridge (20128→20127) for tunnel compatibility
+- **Enhanced Zed Integration**: Scripts for per-account model listing, plan detection, and health monitoring
+  - `scripts/zed-models.mjs` - Lists usable models per Zed account with plan info
+  - `scripts/accounts-status.mjs` - Per-provider/account health dashboard with live connection testing
+  - `scripts/accounts-test.mjs` - Connection testing per account
+- **Performance**: Direct gateway launch with 1 GB heap cap (no launcher process overhead)
+
+### Fixes
+- **9ai portability**: Made `CLIP_DIR` configurable via environment variable (was hardcoded path)
+- **9ai error handling**: Added graceful degradation for cloudflared spawn failures with helpful diagnostics
+- **Zed connection test**: Real Zed connection test instead of 'Provider test not supported'
+- **Claude passthrough**: Keep Claude passthrough untouched; update golden for is_error
+- **Claude tool_result**: Always send boolean is_error on tool_result; drop Zed temperature
+
+## Upstream v0.5.112 Features
+
 ## Features
 - **MiniMax Code**: add lease auth mode that rides the desktop app's sign-in through a named-pipe/unix-socket broker (length-prefixed JSON protocol, broker-owned token refresh — no refresh token held locally since MiniMax tokens are single-use), with a dashboard lease button and usage attribution
 - **Nace Drex**: add the `nace` provider to the System One lane with `drex`, `drex-v2.0` and `drex-max`

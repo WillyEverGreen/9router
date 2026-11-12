@@ -114,3 +114,28 @@ export function getAdapterSync() {
   if (!state.instance) throw new Error("[DB] adapter not initialized — await getAdapter() first");
   return state.instance;
 }
+
+/**
+ * Cleanly close the active SQLite adapter and reset module/global singleton
+ * state so subsequent imports (e.g. test suites rotating DATA_DIR) open fresh
+ * handles without leaking OS file locks.
+ */
+export async function closeAdapter() {
+  const pending = state.initPromise;
+  state.initPromise = null;
+  let instance = state.instance;
+  state.instance = null;
+  state.logged = false;
+  if (!instance && pending) {
+    try {
+      instance = await pending;
+    } catch (err) {
+      console.warn("[DB] Pending adapter init rejected during close:", err?.message || err);
+    }
+  }
+  try {
+    instance?.close?.();
+  } catch (err) {
+    console.warn("[DB] Failed to close adapter cleanly:", err?.message || err);
+  }
+}

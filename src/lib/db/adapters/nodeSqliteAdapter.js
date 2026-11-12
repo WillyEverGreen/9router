@@ -44,9 +44,10 @@ export async function createNodeSqliteAdapter(filePath) {
     try { db.close(); } catch {}
   }
   const onShutdown = () => gracefulClose();
+  const onSignal = () => { onShutdown(); process.exit(0); };
   process.once("beforeExit", onShutdown);
-  process.once("SIGINT", () => { onShutdown(); process.exit(0); });
-  process.once("SIGTERM", () => { onShutdown(); process.exit(0); });
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
 
   return {
     driver: "node:sqlite",
@@ -77,6 +78,9 @@ export async function createNodeSqliteAdapter(filePath) {
     checkpoint() { try { db.exec("PRAGMA wal_checkpoint(TRUNCATE)"); } catch {} },
     close() {
       clearInterval(checkpointTimer);
+      process.off("beforeExit", onShutdown);
+      process.off("SIGINT", onSignal);
+      process.off("SIGTERM", onSignal);
       gracefulClose();
     },
     raw: db,

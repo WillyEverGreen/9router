@@ -5,6 +5,7 @@ import {
   KIRO_ENDPOINT_FALLBACK_STATUSES,
   resolveKiroModel,
 } from "../config/kiroConstants.js";
+import { buildKiroClientUserAgent } from "../services/kiroModels.js";
 import { v4 as uuidv4 } from "uuid";
 import { refreshKiroToken } from "../services/tokenRefresh.js";
 import { SSE_DONE, SSE_HEADERS } from "../utils/sseConstants.js";
@@ -221,8 +222,11 @@ export class KiroExecutor extends BaseExecutor {
   }
 
   buildHeaders(credentials, stream = true, url = "") {
+    const { userAgent, amzUserAgent } = buildKiroClientUserAgent(credentials, "codewhispererstreaming");
     const headers = {
       ...this.config.headers,
+      "User-Agent": userAgent,
+      "X-Amz-User-Agent": amzUserAgent,
       "Amz-Sdk-Request": "attempt=1; max=3",
       "Amz-Sdk-Invocation-Id": uuidv4()
     };

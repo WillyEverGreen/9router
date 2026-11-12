@@ -22,12 +22,12 @@
 import { v4 as uuidv4 } from "uuid";
 import { createHash } from "crypto";
 import { refreshKiroToken } from "./tokenRefresh.js";
+import { KIRO_IDE_VERSION } from "../config/kiroConstants.js";
 
 const KIRO_RUNTIME_SDK_VERSION = "1.0.0";
 const KIRO_AGENT_OS = "windows";
 const KIRO_AGENT_OS_VERSION = "10.0.26200";
 const KIRO_NODE_VERSION = "22.21.1";
-const KIRO_VERSION = "0.10.32";
 
 const DEFAULT_REGION = "us-east-1";
 const FETCH_TIMEOUT_MS = 30_000;
@@ -60,11 +60,10 @@ function regionFromProfileArn(profileArn) {
 }
 
 /**
- * Build the per-account fingerprint headers Kiro upstream validates.
- * Keyed off whatever stable identifier we have for this credential, so the
- * same account always presents the same machineId.
+ * Build deterministic per-account `User-Agent` and `X-Amz-User-Agent` strings
+ * identifying a supported Kiro IDE client version (`KIRO_IDE_VERSION`).
  */
-function buildKiroFingerprintHeaders(credentials) {
+export function buildKiroClientUserAgent(credentials, api = "codewhispererruntime") {
   const seed =
     credentials?.providerSpecificData?.clientId
     || credentials?.refreshToken
@@ -72,14 +71,26 @@ function buildKiroFingerprintHeaders(credentials) {
     || credentials?.accessToken
     || "kiro-anonymous";
   const machineId = createHash("sha256").update(String(seed)).digest("hex");
+  const clientTag = `KiroIDE-${KIRO_IDE_VERSION}-${machineId}`;
 
   const userAgent =
     `aws-sdk-js/${KIRO_RUNTIME_SDK_VERSION} ua/2.1 ` +
     `os/${KIRO_AGENT_OS}#${KIRO_AGENT_OS_VERSION} ` +
     `lang/js md/nodejs#${KIRO_NODE_VERSION} ` +
-    `api/codewhispererruntime#${KIRO_RUNTIME_SDK_VERSION} m/N,E ` +
-    `KiroIDE-${KIRO_VERSION}-${machineId}`;
-  const amzUserAgent = `aws-sdk-js/${KIRO_RUNTIME_SDK_VERSION} KiroIDE-${KIRO_VERSION}-${machineId}`;
+    `api/${api}#${KIRO_RUNTIME_SDK_VERSION} m/N,E ` +
+    clientTag;
+  const amzUserAgent = `aws-sdk-js/${KIRO_RUNTIME_SDK_VERSION} ${clientTag}`;
+
+  return { userAgent, amzUserAgent };
+}
+
+/**
+ * Build the per-account fingerprint headers Kiro upstream validates.
+ * Keyed off whatever stable identifier we have for this credential, so the
+ * same account always presents the same machineId.
+ */
+function buildKiroFingerprintHeaders(credentials) {
+  const { userAgent, amzUserAgent } = buildKiroClientUserAgent(credentials, "codewhispererruntime");
 
   return {
     "User-Agent": userAgent,

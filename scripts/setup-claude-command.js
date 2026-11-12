@@ -65,17 +65,15 @@ You can set the reasoning effort level on **any** model by appending \`(<level>)
 #### 🔹 Zed Models (\`--model zd/<id>\`)
 - \`zd/claude-sonnet-5-5\`, \`zd/claude-sonnet-5\`, \`zd/claude-sonnet-4-6\`, \`zd/claude-sonnet-4-5\`
 - \`zd/claude-haiku-5-5\`, \`zd/claude-haiku-4-5\`
+- \`zd/gemini-4-argon\`, \`zd/gemini-3.1-pro-preview\`, \`zd/gemini-3.8-flash\`
 - \`zd/gpt-6.1-sol\`, \`zd/gpt-6-sol\`, \`zd/gpt-6-luna\`
 - \`zd/gpt-5.6-terra\`, \`zd/gpt-5.6-luna\`, \`zd/gpt-5.5\`
-- \`zd/gemini-3.1-pro-preview\`, \`zd/gemini-3.8-flash\`
 
 #### 🔹 Kiro Pool (\`--model kr/<id>\`)
 - \`kr/claude-sonnet-4.5\`, \`kr/claude-sonnet-4.5-thinking\`, \`kr/claude-sonnet-4.5-agentic\`
-- \`kr/deepseek-3.2\`, \`kr/deepseek-3.2-thinking\`
+- \`kr/claude-haiku-4.5\`, \`kr/deepseek-3.2\`, \`kr/deepseek-3.2-thinking\`
 - \`kr/qwen3-coder-next\`, \`kr/qwen3-coder-next-thinking\`
-- \`kr/glm-5\`, \`kr/glm-5-thinking\`
-- \`kr/minimax-m2.5\`, \`kr/minimax-m2.1\`
-- \`kr/claude-haiku-4.5\`
+- \`kr/glm-5\`, \`kr/glm-5-thinking\`, \`kr/minimax-m2.5\`, \`kr/minimax-m2.1\`
 
 #### 🔹 Codex Pool (\`--model cx/<id>\`)
 - \`cx/gpt-5.6-terra\`, \`cx/gpt-5.6-terra[1m]\`, \`cx/gpt-5.6-terra-review\`
@@ -83,9 +81,9 @@ You can set the reasoning effort level on **any** model by appending \`(<level>)
 - \`cx/gpt-5.5\`, \`cx/gpt-reserve\`
 
 #### 🔹 Antigravity Pool (\`--model ag/<id>\`)
+- \`ag/claude-opus-4-6-thinking\`, \`ag/claude-sonnet-4-6\`
 - \`ag/gemini-3.8-flash\`, \`ag/gemini-3.8-flash-high\`, \`ag/gemini-3.8-flash-medium\`, \`ag/gemini-3.8-flash-low\`
-- \`ag/gemini-3.7-flash-high\`, \`ag/gemini-3.6-flash-high\`
-- \`ag/gemini-3.1-pro-high\`, \`ag/claude-sonnet-4-6\`
+- \`ag/gemini-3.7-flash-high\`, \`ag/gemini-3.6-flash-high\`, \`ag/gemini-3.1-pro-high\`
 
 ---
 
@@ -207,14 +205,16 @@ Append \`(<level>)\` or token count to any model name:
 ---
 
 ### ⚡ Top Model Shortcuts:
-- \`sonnet-5.5\` $\\to$ Claude Sonnet 5.5 (Zed)
-- \`sonnet-4.5\` $\\to$ Claude Sonnet 4.5
-- \`deepseek\` $\\to$ DeepSeek 3.2
-- \`terra\` $\\to$ GPT-5.6 Terra
-- \`luna\` $\\to$ GPT-6 Luna (Zed / Codex)
-- \`qwen\` $\\to$ Qwen3 Coder Next
-- \`daily\` $\\to$ Gemini 3.8 Flash
-- \`plan\` $\\to$ Claude Sonnet 4.5 Thinking (High Budget)
+- \`sonnet-5.5\` -> Claude Sonnet 5.5 (Zed)
+- \`sonnet-4.5\` -> Claude Sonnet 4.5 (Kiro)
+- \`opus-4.6\` -> Claude Opus 4.6 Thinking (Antigravity)
+- \`argon\` -> Gemini 4 Argon (Zed)
+- \`deepseek\` -> DeepSeek 3.2
+- \`terra\` -> GPT-5.6 Terra
+- \`luna\` -> GPT-6 Luna (Zed / Codex)
+- \`qwen\` -> Qwen3 Coder Next
+- \`daily\` -> Gemini 3.8 Flash
+- \`plan\` -> Claude Sonnet 4.5 Thinking (High Budget)
 
 ---
 

@@ -1,75 +1,140 @@
 #!/usr/bin/env node
 /**
  * 9Router Model Verification Suite
- * Tests models across all providers (Zed, Kiro, Codex, Antigravity, Shortcuts)
+ * Tests models across Zed, Kiro, Codex, Antigravity, Freebuff presets, and multi-turn roundtrips.
  * Usage:
- *   node scripts/test-outsourced-models.js            # Tests representative models
- *   node scripts/test-outsourced-models.js --all      # Tests all available chat models
- *   node scripts/test-outsourced-models.js zed        # Tests Zed models only
- *   node scripts/test-outsourced-models.js kiro       # Tests Kiro models only
- *   node scripts/test-outsourced-models.js codex      # Tests Codex models only
- *   node scripts/test-outsourced-models.js ag         # Tests Antigravity models only
+ *   node scripts/test-outsourced-models.js                  # Representative models
+ *   node scripts/test-outsourced-models.js --freebuff       # Freebuff 10-model set
+ *   node scripts/test-outsourced-models.js --roundtrip      # Also verify reasoning/tool replay on zd/gemini-4-argon
+ *   node scripts/test-outsourced-models.js --all            # All available chat models
+ *   node scripts/test-outsourced-models.js --no-stream zed  # Non-streaming check on Zed models
  */
-
-import { readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import path from "node:path";
 
 const BASE_URL = (process.env.NINE_ROUTER_URL || `http://127.0.0.1:${process.env.PORT || 20127}`).replace(/\/$/, "");
 
-function getApiKey() {
-  if (process.env.NINE_ROUTER_API_KEY) return process.env.NINE_ROUTER_API_KEY;
-  try {
-    const claudeSettings = JSON.parse(
-      readFileSync(path.join(homedir(), ".claude", "settings.json"), "utf8")
-    );
-    return claudeSettings?.env?.ANTHROPIC_API_KEY || "";
-  } catch {
-    return "";
-  }
+const FREEBUFF_MODELS = [
+  "kr/claude-sonnet-4.5-thinking",
+  "kr/claude-haiku-4.5",
+  "ag/claude-opus-4-6-thinking",
+  "ag/claude-sonnet-4-6",
+  "ag/gemini-3.8-flash-high",
+  "cx/gpt-5.6-terra",
+  "cx/gpt-6-luna",
+  "zd/claude-sonnet-5-5",
+  "zd/gemini-4-argon",
+  "zd/claude-haiku-5-5",
+];
+
+const REPRESENTATIVE_MODELS = [
+  "sonnet-5.5",
+  "deepseek",
+  "terra",
+  "qwen",
+  "glm",
+  "zd/claude-sonnet-5-5",
+  "zd/claude-haiku-5-5",
+  "zd/gemini-4-argon",
+  "zd/gpt-6-luna",
+  "zd/gpt-5.6-terra",
+  "kr/claude-sonnet-4.5",
+  "kr/claude-haiku-4.5",
+  "kr/deepseek-3.2",
+  "kr/qwen3-coder-next",
+  "kr/glm-5",
+  "cx/gpt-6-luna",
+  "cx/gpt-5.6-terra",
+  "ag/claude-opus-4-6-thinking",
+  "ag/claude-sonnet-4-6",
+  "ag/gemini-3.8-flash-high",
+];
+
+function buildHeaders(apiKey) {
+  return {
+    "Content-Type": "application/json",
+    ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+  };
 }
 
-const API_KEY = getApiKey();
-const headers = {
-  "Content-Type": "application/json",
-  ...(API_KEY ? { Authorization: `Bearer ${API_KEY}` } : {})
-};
-
-function parseSseText(text) {
+function parseSseResponse(text) {
   let content = "";
-  const lines = text.split("\n");
-  for (const line of lines) {
-    const trimmed = line.trim();
+  let reasoning = "";
+  let errorMsg = "";
+  const toolCalls = new Map();
+
+  for (const rawLine of text.split("\n")) {
+    const trimmed = rawLine.trim();
     if (!trimmed || !trimmed.startsWith("data:")) continue;
     const dataStr = trimmed.slice(5).trim();
     if (dataStr === "[DONE]") continue;
     try {
       const parsed = JSON.parse(dataStr);
-      const delta = parsed.choices?.[0]?.delta?.content;
-      if (typeof delta === "string") content += delta;
-      const msg = parsed.choices?.[0]?.message?.content;
-      if (typeof msg === "string") content += msg;
+      if (parsed.error) {
+        errorMsg = parsed.error?.message || JSON.stringify(parsed.error);
+        continue;
+      }
+      const choice = parsed.choices?.[0];
+      if (!choice) continue;
+      const src = choice.delta || choice.message || {};
+      if (typeof src.content === "string") content += src.content;
+      if (typeof src.reasoning_content === "string") reasoning += src.reasoning_content;
+      if (Array.isArray(src.tool_calls)) {
+        for (const tc of src.tool_calls) {
+          const idx = tc.index ?? 0;
+          const cur = toolCalls.get(idx) || { id: tc.id || `call_${idx}`, name: "", args: "" };
+          if (tc.id) cur.id = tc.id;
+          if (tc.function?.name) cur.name += tc.function.name;
+          if (tc.function?.arguments) cur.args += tc.function.arguments;
+          toolCalls.set(idx, cur);
+        }
+      }
     } catch {
-      // ignore individual chunk parse errors
+      // Ignore partial/malformed SSE comment frames
     }
   }
-  return content;
+
+  return { content, reasoning, errorMsg, toolCalls: [...toolCalls.values()] };
 }
 
-async function testSingleModel(model) {
+function parseCompletionPayload(rawText, contentType) {
+  if (contentType.includes("text/event-stream") || rawText.trim().startsWith("data:")) {
+    return parseSseResponse(rawText);
+  }
+  try {
+    const parsed = JSON.parse(rawText);
+    if (parsed.error) {
+      return { content: "", reasoning: "", errorMsg: parsed.error?.message || JSON.stringify(parsed.error), toolCalls: [] };
+    }
+    const msg = parsed.choices?.[0]?.message || {};
+    return {
+      content: typeof msg.content === "string" ? msg.content : "",
+      reasoning: typeof msg.reasoning_content === "string" ? msg.reasoning_content : "",
+      errorMsg: "",
+      toolCalls: Array.isArray(msg.tool_calls) ? msg.tool_calls : [],
+    };
+  } catch {
+    return { content: rawText, reasoning: "", errorMsg: "", toolCalls: [] };
+  }
+}
+
+async function runChatProbe(model, headers, { stream = true, messages = null, tools = null } = {}) {
+  const isThinking = /thinking|argon|opus-4-6|sonnet-4\.5|sonnet-5|terra|luna/i.test(model);
+  const maxTokens = isThinking ? 512 : 128;
+  const payload = {
+    model,
+    stream,
+    max_tokens: maxTokens,
+    messages: messages || [{ role: "user", content: "Reply with the single word: OK" }],
+    ...(tools ? { tools } : {}),
+  };
+
   const t0 = Date.now();
   try {
     const res = await fetch(`${BASE_URL}/v1/chat/completions`, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: "Reply with the single word: OK" }],
-        max_tokens: 30
-      }),
-      signal: AbortSignal.timeout(45000)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(60000),
     });
-
     const elapsed = Date.now() - t0;
     const rawText = await res.text();
 
@@ -79,85 +144,104 @@ async function testSingleModel(model) {
         const j = JSON.parse(rawText);
         errMsg = j.error?.message || j.message || rawText;
       } catch {}
-      return { ok: false, elapsed, error: errMsg.slice(0, 120).replace(/\s+/g, " ") };
+      return { ok: false, elapsed, error: `HTTP ${res.status}: ${errMsg.slice(0, 140).replace(/\s+/g, " ")}` };
     }
 
-    let reply = "";
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType.includes("text/event-stream") || rawText.trim().startsWith("data:")) {
-      reply = parseSseText(rawText);
-    } else {
-      try {
-        const j = JSON.parse(rawText);
-        reply = j.choices?.[0]?.message?.content || "";
-      } catch {
-        reply = rawText;
-      }
+    const parsed = parseCompletionPayload(rawText, res.headers.get("content-type") || "");
+    if (parsed.errorMsg) {
+      return { ok: false, elapsed, error: parsed.errorMsg.slice(0, 140) };
     }
 
-    reply = reply.trim().replace(/\s+/g, " ");
-
-    if (reply.includes("[Zed error]") || reply.includes("[error]")) {
-      return { ok: false, elapsed, error: reply.slice(0, 120) };
+    const combined = (parsed.content || "").trim().replace(/\s+/g, " ");
+    const reasonText = (parsed.reasoning || "").trim().replace(/\s+/g, " ");
+    if (combined.includes("[Zed error]") || combined.includes("[error]")) {
+      return { ok: false, elapsed, error: combined.slice(0, 140) };
+    }
+    if (!combined && !reasonText && parsed.toolCalls.length === 0) {
+      return { ok: false, elapsed, error: "(empty response)" };
     }
 
-    return { ok: true, elapsed, reply: reply.slice(0, 40) || "(empty response)" };
+    const preview = combined
+      ? combined.slice(0, 48)
+      : reasonText
+        ? `[reasoning] ${reasonText.slice(0, 36)}`
+        : `[tool_call] ${parsed.toolCalls.map((t) => t.name || t.function?.name).join(",")}`;
+    return { ok: true, elapsed, reply: preview };
   } catch (err) {
     return { ok: false, elapsed: Date.now() - t0, error: err.message };
   }
 }
 
-async function getAvailableModels() {
-  const res = await fetch(`${BASE_URL}/v1/models`, { headers });
+async function runArgonRoundtripProbe(headers, stream) {
+  const messages = [
+    { role: "user", content: "Check system status first." },
+    {
+      role: "assistant",
+      reasoning_content: "Calling status tool before answering.",
+      content: "",
+      tool_calls: [
+        { id: "call_probe_foreign_1", type: "function", function: { name: "get_status", arguments: "{}" } },
+      ],
+    },
+    { role: "tool", tool_call_id: "call_probe_foreign_1", content: '{"healthy":true}' },
+    { role: "user", content: "Summarize the tool output in one word: OK." },
+  ];
+  return runChatProbe("zd/gemini-4-argon", headers, { stream, messages });
+}
+
+async function getAvailableModels(headers) {
+  const res = await fetch(`${BASE_URL}/v1/models`, { headers, signal: AbortSignal.timeout(10000) });
   if (!res.ok) {
-    throw new Error(`Failed to fetch models from 9Router (HTTP ${res.status}). Is server running?`);
+    throw new Error(`Failed to fetch models from 9Router (HTTP ${res.status}). Is server running at ${BASE_URL}?`);
   }
   const data = await res.json();
   return (data.data || []).map((m) => m.id);
 }
 
-const REPRESENTATIVE_MODELS = [
-  // Quick Shortcuts
-  "sonnet-5.5",
-  "deepseek",
-  "terra",
-  "qwen",
-  "glm",
-  // Zed Models (Anthropic, OpenAI, Google)
-  "zd/claude-sonnet-5-5",
-  "zd/claude-haiku-5-5",
-  "zd/gpt-6-luna",
-  "zd/gpt-5.6-terra",
-  "zd/gemini-3.8-flash",
-  // Kiro Models
-  "kr/claude-sonnet-4.5",
-  "kr/deepseek-3.2",
-  "kr/qwen3-coder-next",
-  "kr/glm-5",
-  // Codex Models
-  "cx/gpt-6-luna",
-  "cx/gpt-5.6-terra",
-  // Antigravity Models
-  "ag/gemini-3.8-flash-high",
-  "ag/gemini-3.8-flash",
-  "ag/claude-sonnet-4-6"
-];
+function printHelp() {
+  console.log(`Usage: node scripts/test-outsourced-models.js [options] [filter]
+
+Options:
+  --freebuff       Test the 10-model Freebuff BYOK set
+  --roundtrip      Run cross-model reasoning + tool_calls replay against zd/gemini-4-argon
+  --all            Test all non-media models returned by /v1/models
+  --no-stream      Use non-streaming JSON responses instead of SSE streaming
+  --help, -h       Show this help message
+
+Filters:
+  zed | zd | kiro | kr | codex | cx | ag | <substring>`);
+}
 
 async function main() {
   const args = process.argv.slice(2);
+  if (args.includes("--help") || args.includes("-h")) {
+    printHelp();
+    return;
+  }
+
   const isAll = args.includes("--all");
-  const filter = args.find((a) => !a.startsWith("--"))?.toLowerCase();
+  const isFreebuff = args.includes("--freebuff");
+  const runRoundtrip = args.includes("--roundtrip");
+  const stream = !args.includes("--no-stream");
+  const filter = args.find((a) => !a.startsWith("-"))?.toLowerCase();
+
+  const { resolveRouterApiKey } = await import("./lib/routerEnv.mjs");
+  const apiKey = await resolveRouterApiKey();
+  const headers = buildHeaders(apiKey);
 
   console.log("===============================================================================");
   console.log("                     9ROUTER MODEL VERIFICATION SUITE                          ");
-  console.log(`                     Target: ${BASE_URL}                                `);
+  console.log(`                     Target: ${BASE_URL} (${stream ? "SSE stream" : "non-stream"})`);
+  console.log(`                     Auth:   ${apiKey ? "API key loaded" : "No API key (local mode)"}`);
   console.log("===============================================================================\n");
 
   let modelsToTest = [];
   try {
-    const allModels = await getAvailableModels();
+    const allModels = await getAvailableModels(headers);
 
-    if (isAll) {
+    if (isFreebuff) {
+      modelsToTest = FREEBUFF_MODELS;
+    } else if (isAll) {
       modelsToTest = allModels.filter((m) => !/embed|image|tts|transcribe|review|\[1m\]/i.test(m));
     } else if (filter) {
       modelsToTest = allModels.filter((m) => {
@@ -168,7 +252,6 @@ async function main() {
         return m.toLowerCase().includes(filter);
       });
     } else {
-      // Pick models that are available from the representative list
       modelsToTest = REPRESENTATIVE_MODELS.filter((m) => allModels.includes(m));
     }
   } catch (err) {
@@ -176,7 +259,7 @@ async function main() {
     process.exit(1);
   }
 
-  if (modelsToTest.length === 0) {
+  if (modelsToTest.length === 0 && !runRoundtrip) {
     console.log("No matching models found to test.");
     return;
   }
@@ -186,8 +269,8 @@ async function main() {
   let failed = 0;
 
   for (const model of modelsToTest) {
-    process.stdout.write(`  • Testing ${model.padEnd(30)} ... `);
-    const result = await testSingleModel(model);
+    process.stdout.write(`  * Testing ${model.padEnd(32)} ... `);
+    const result = await runChatProbe(model, headers, { stream });
     if (result.ok) {
       passed++;
       console.log(`[PASS] (${result.elapsed}ms) -> "${result.reply}"`);
@@ -197,16 +280,33 @@ async function main() {
     }
   }
 
+  if (runRoundtrip) {
+    process.stdout.write(`  * Testing zd/gemini-4-argon [roundtrip]  ... `);
+    const rt = await runArgonRoundtripProbe(headers, stream);
+    if (rt.ok) {
+      passed++;
+      console.log(`[PASS] (${rt.elapsed}ms) -> "${rt.reply}"`);
+    } else {
+      failed++;
+      console.log(`[FAIL] (${rt.elapsed}ms) -> ${rt.error}`);
+    }
+  }
+
+  const total = modelsToTest.length + (runRoundtrip ? 1 : 0);
   console.log("\n===============================================================================");
-  console.log(`SUMMARY: ${passed} Passed, ${failed} Failed out of ${modelsToTest.length} tested.`);
+  console.log(`SUMMARY: ${passed} Passed, ${failed} Failed out of ${total} check(s).`);
   console.log("===============================================================================\n");
-  
+
   if (failed > 0) {
     process.exitCode = 1;
   }
 }
 
-main().catch((err) => {
-  console.error("Fatal error:", err);
-  process.exit(1);
-});
+module.exports = { FREEBUFF_MODELS, REPRESENTATIVE_MODELS };
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error("Fatal error:", err);
+    process.exit(1);
+  });
+}

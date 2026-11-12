@@ -20,6 +20,8 @@ import { effortToBudget } from "../translator/concerns/thinking.js";
 
 export const KIRO_AGENTIC_SUFFIX = "-agentic";
 export const KIRO_THINKING_SUFFIX = "-thinking";
+export const KIRO_IDE_VERSION =
+  (typeof process !== "undefined" && process.env?.KIRO_IDE_VERSION?.trim()) || "1.1.14";
 export const KIRO_TOOL_NAME_MAX_LENGTH = 64;
 export const KIRO_TOOL_DESCRIPTION_MAX_LENGTH = 10237;
 export const KIRO_TOOL_ID_MAX_LENGTH = 64;

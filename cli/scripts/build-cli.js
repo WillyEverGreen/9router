@@ -170,6 +170,9 @@ function buildCliPackage() {
 
   // Step 1: Build app with Next.js (workspace tracing root → traced node_modules in standalone).
   console.log("1️⃣  Building Next.js app...");
+  if (fs.existsSync(buildDistDir)) {
+    fs.rmSync(buildDistDir, { recursive: true, force: true });
+  }
   try {
     execSync("npm run build", {
       stdio: "inherit",
@@ -335,9 +338,17 @@ function buildCliPackage() {
   console.log(`📁 Output: ${cliAppDir}`);
 
   try {
-    const { execSync: exec } = require("child_process");
-    const size = exec(`du -sh "${cliAppDir}"`, { encoding: "utf8" }).trim();
-    console.log(`📊 Package size: ${size.split("\t")[0]}`);
+    const dirSizeBytes = (dir) => {
+      let total = 0;
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) total += dirSizeBytes(full);
+        else if (entry.isFile()) total += fs.statSync(full).size;
+      }
+      return total;
+    };
+    const mb = (dirSizeBytes(cliAppDir) / (1024 * 1024)).toFixed(1);
+    console.log(`📊 Package size: ${mb} MB`);
   } catch (e) {
     // Silent fail on size check
   }

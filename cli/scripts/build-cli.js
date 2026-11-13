@@ -151,6 +151,19 @@ function assertRequiredApiArtifacts(cliAppDir) {
 function buildCliPackage() {
   console.log("📦 Building 9Router CLI package with Next.js...\n");
 
+  // Step -1: Verify vision fix is present before building
+  console.log("0️⃣  Verifying vision fix...");
+  try {
+    execSync("node ../scripts/verify-vision-fix.mjs", {
+      stdio: "inherit",
+      cwd: cliDir,
+    });
+  } catch (error) {
+    console.error("❌ Vision fix verification failed — build aborted");
+    process.exit(1);
+  }
+  console.log("");
+
   fs.mkdirSync(buildHomeDir, { recursive: true });
   fs.mkdirSync(path.join(buildHomeDir, "AppData", "Roaming"), { recursive: true });
   fs.mkdirSync(path.join(buildHomeDir, "AppData", "Local"), { recursive: true });

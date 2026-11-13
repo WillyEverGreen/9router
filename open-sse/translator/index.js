@@ -1,5 +1,6 @@
 import { FORMATS } from "./formats.js";
 import { ensureToolCallIds, fixMissingToolResponses } from "./concerns/toolCall.js";
+import { hoistToolResultImages } from "./concerns/toolMedia.js";
 import { prepareClaudeRequest, ensureTrailingUserTurn } from "./formats/claude.js";
 import { cloakClaudeTools, decloakStreamChunk } from "../utils/claudeCloaking.js";
 import { restoreToolNames } from "../utils/opencodeFingerprint.js";
@@ -77,6 +78,12 @@ export function translateRequest(sourceFormat, targetFormat, model, body, stream
 
   // Normalize thinking config: remove if lastMessage is not user
   normalizeThinkingConfig(result);
+
+  // Images inside tool results only survive on a Claude target; relocate them to the
+  // following user turn for every other target so the model really receives the pixels.
+  if (sourceFormat === FORMATS.OPENAI && targetFormat !== FORMATS.CLAUDE) {
+    hoistToolResultImages(result);
+  }
 
   // Always ensure tool_calls have id (some providers require it)
   ensureToolCallIds(result);

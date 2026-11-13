@@ -420,6 +420,14 @@ function wrapInCloudCodeEnvelopeForClaude(model, claudeRequest, credentials = nu
         for (const block of msg.content) {
           if (block.type === CLAUDE_BLOCK.TEXT) {
             parts.push({ text: block.text });
+          } else if (block.type === CLAUDE_BLOCK.IMAGE && block.source) {
+            // Cloud Code carries Claude images as Gemini-style inlineData / fileData.
+            // Without this branch the image was dropped and the model invented one.
+            if (block.source.type === "base64" && block.source.data) {
+              parts.push({ inlineData: { mime_type: block.source.media_type || "image/png", data: block.source.data } });
+            } else if (block.source.type === "url" && block.source.url) {
+              parts.push({ fileData: { fileUri: block.source.url, mimeType: block.source.media_type || "image/*" } });
+            }
           } else if (block.type === CLAUDE_BLOCK.TOOL_USE) {
             const cachedSig = block.id ? getGeminiThoughtSignatureSync(block.id, credentials?._clientSessionId, model) : null;
             const callSig = cachedSig || (!firstToolUseSeen ? signature : undefined);

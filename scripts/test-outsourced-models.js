@@ -15,34 +15,33 @@ const BASE_URL = (process.env.NINE_ROUTER_URL || `http://127.0.0.1:${process.env
 const FREEBUFF_MODELS = [
   "kr/claude-sonnet-4.5-thinking",
   "kr/claude-haiku-4.5",
+  "kr/deepseek-3.2",
+  "kr/qwen3-coder-next",
   "ag/claude-opus-4-6-thinking",
   "ag/claude-sonnet-4-6",
   "ag/gemini-3.8-flash-high",
-  "cx/gpt-5.6-terra",
+  "cx/gpt-6-astra",
   "cx/gpt-6-luna",
-  "zd/claude-sonnet-5-5",
-  "zd/gemini-4-argon",
-  "zd/claude-haiku-5-5",
+  "cx/gpt-5.6-terra",
 ];
 
 const REPRESENTATIVE_MODELS = [
+  "astra",
   "sonnet-5.5",
   "deepseek",
   "terra",
   "qwen",
   "glm",
-  "zd/claude-sonnet-5-5",
-  "zd/claude-haiku-5-5",
-  "zd/gemini-4-argon",
-  "zd/gpt-6-luna",
-  "zd/gpt-5.6-terra",
   "kr/claude-sonnet-4.5",
   "kr/claude-haiku-4.5",
   "kr/deepseek-3.2",
   "kr/qwen3-coder-next",
   "kr/glm-5",
+  "cx/gpt-6-astra",
   "cx/gpt-6-luna",
   "cx/gpt-5.6-terra",
+  "cx/gpt-6.1-sol",
+  "cx/gpt-6.1-terra",
   "ag/claude-opus-4-6-thinking",
   "ag/claude-sonnet-4-6",
   "ag/gemini-3.8-flash-high",
@@ -186,7 +185,7 @@ async function runArgonRoundtripProbe(headers, stream) {
     { role: "tool", tool_call_id: "call_probe_foreign_1", content: '{"healthy":true}' },
     { role: "user", content: "Summarize the tool output in one word: OK." },
   ];
-  return runChatProbe("zd/gemini-4-argon", headers, { stream, messages });
+  return runChatProbe("ag/gemini-3.8-flash-high", headers, { stream, messages });
 }
 
 async function getAvailableModels(headers) {
@@ -203,13 +202,13 @@ function printHelp() {
 
 Options:
   --freebuff       Test the 10-model Freebuff BYOK set
-  --roundtrip      Run cross-model reasoning + tool_calls replay against zd/gemini-4-argon
+  --roundtrip      Run cross-model reasoning + tool_calls replay probe
   --all            Test all non-media models returned by /v1/models
   --no-stream      Use non-streaming JSON responses instead of SSE streaming
   --help, -h       Show this help message
 
 Filters:
-  zed | zd | kiro | kr | codex | cx | ag | <substring>`);
+  kiro | kr | codex | cx | ag | <substring>`);
 }
 
 async function main() {
@@ -281,7 +280,7 @@ async function main() {
   }
 
   if (runRoundtrip) {
-    process.stdout.write(`  * Testing zd/gemini-4-argon [roundtrip]  ... `);
+    process.stdout.write(`  * Testing ag/gemini-3.8-flash-high [roundtrip]  ... `);
     const rt = await runArgonRoundtripProbe(headers, stream);
     if (rt.ok) {
       passed++;

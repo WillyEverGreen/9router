@@ -247,13 +247,14 @@ async function main() {
     if (isFreebuff) {
       modelsToTest = FREEBUFF_MODELS;
     } else if (isAll) {
-      modelsToTest = allModels.filter((m) => !/embed|image|tts|transcribe|review|\[1m\]/i.test(m));
+      modelsToTest = allModels.filter((m) => !/embed|image|tts|transcribe|review|jev|systemone|\[1m\]/i.test(m));
     } else if (filter) {
       modelsToTest = allModels.filter((m) => {
-        if (filter === "zed" || filter === "zd") return m.startsWith("zd/");
+        if (/embed|image|tts|transcribe|review|jev|systemone|\[1m\]/i.test(m)) return false;
         if (filter === "kiro" || filter === "kr") return m.startsWith("kr/");
         if (filter === "codex" || filter === "cx") return m.startsWith("cx/");
         if (filter === "ag" || filter === "antigravity") return m.startsWith("ag/");
+        if (filter === "oc" || filter === "opencode") return m.startsWith("oc/");
         return m.toLowerCase().includes(filter);
       });
     } else {

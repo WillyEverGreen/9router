@@ -27,6 +27,9 @@ const FREEBUFF_MODELS = [
 
 const REPRESENTATIVE_MODELS = [
   "astra",
+  "deepseek-v4.1-flash-free",
+  "beam-free",
+  "nemotron-3.5-super-vl-free",
   "sonnet-5.5",
   "deepseek",
   "terra",
@@ -37,6 +40,9 @@ const REPRESENTATIVE_MODELS = [
   "kr/deepseek-3.2",
   "kr/qwen3-coder-next",
   "kr/glm-5",
+  "oc/deepseek-v4.1-flash-free",
+  "oc/beam-free",
+  "oc/nemotron-3.5-super-vl-free",
   "cx/gpt-6-astra",
   "cx/gpt-6-luna",
   "cx/gpt-5.6-terra",

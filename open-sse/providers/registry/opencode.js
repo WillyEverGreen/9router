@@ -37,6 +37,9 @@ export default {
   },
   models: [
     // Endpoint formats differ per model, so declare non-chat models explicitly.
+    { id: "deepseek-v4.1-flash-free", name: "DeepSeek V4.1 Flash Free" },
+    { id: "beam-free", name: "Beam Free" },
+    { id: "nemotron-3.5-super-vl-free", name: "Nemotron 3.5 Super VL Free" },
     { id: "muse-spark-1.2-contributor-free", name: "Muse Spark 1.2 Contributor Free", targetFormat: "openai-responses" },
     { id: "muse-spark-1.3-contributor-free", name: "Muse Spark 1.3 Contributor Free", targetFormat: "openai-responses" },
     { id: "union-alpha", name: "Union Alpha Free", targetFormat: "claude" },

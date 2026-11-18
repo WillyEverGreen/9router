@@ -288,7 +288,9 @@ export const PROVIDER_CAPABILITIES = {
   // (VS Code Copilot etc.) compact correctly instead of hard-failing mid-session.
   "opencode": {
     "mimo-v2.6-flash-free": { vision: true, audioInput: true, videoInput: true, reasoning: true, thinkingFormat: "openai", thinkingCanDisable: true, contextWindow: 1048576, maxOutput: 131072 },
-    "deepseek-v4.1-flash-free": { vision: true, reasoning: true, thinkingFormat: "deepseek", contextWindow: 330000, maxOutput: 128000 },
+    "deepseek-v4.1-flash-free": { vision: true, reasoning: true, thinkingFormat: "deepseek", contextWindow: 330000, maxOutput: 32768 },
+    "beam-free": { reasoning: true, thinkingFormat: "deepseek", contextWindow: 262144, maxOutput: 131072 },
+    "nemotron-3.5-super-vl-free": { vision: true, reasoning: true, thinkingFormat: "openai", contextWindow: 1000000, maxOutput: 128000 },
   },
   "commandcode": {
     // The generic commandcode fallback (1M/384k for every unlisted model) happened

@@ -105,6 +105,9 @@ export default {
     { id: "big-pickle", name: "Big Pickle", supportedFormats: ["openai"] },
     { id: "union-alpha", name: "Union Alpha", supportedFormats: ["claude"] },
     // Free tier on the keyed lane (chat completions)
+    { id: "deepseek-v4.1-flash-free", name: "DeepSeek V4.1 Flash Free", supportedFormats: ["openai"] },
+    { id: "beam-free", name: "Beam Free", supportedFormats: ["openai"] },
+    { id: "nemotron-3.5-super-vl-free", name: "Nemotron 3.5 Super VL Free", supportedFormats: ["openai"] },
     { id: "deepseek-v4-flash-free", name: "DeepSeek V4 Flash Free", supportedFormats: ["openai"] },
     { id: "mimo-v2.6-flash-free", name: "MiMo V2.6 Flash Free", supportedFormats: ["openai"] },
     { id: "mimo-v2.5-free", name: "MiMo V2.5 Free", supportedFormats: ["openai"] },

@@ -19,6 +19,9 @@ for (const entry of REGISTRY) {
 
 const BUILTIN_MODEL_ALIASES = {
   "grok-build": "gcli/grok-build",
+  "deepseek-v4.1-flash-free": "oc/deepseek-v4.1-flash-free",
+  "beam-free": "oc/beam-free",
+  "nemotron-3.5-super-vl-free": "oc/nemotron-3.5-super-vl-free",
 };
 
 /**
@@ -143,6 +146,7 @@ const MODEL_PREFIX_PROVIDERS = [
   // so bare usage without a provider/ prefix must route to bedrock, not fall through to openai.
   [/^(us|eu|ap|global)\.(anthropic|meta|amazon|mistral|xai)\./, "bedrock"],
   [/^gemini-/, "gemini"],
+  [/^(beam-free|nemotron-.*-free)$/, "opencode"],
   [/^gpt-/, "openai"],
   [/^o[134]/, "openai"],
   [/^deepseek-/, "openrouter"],
